@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tu carrito está listo</title>
+    <title>Preparando tu carrito</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,7 +27,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #25D366; /* Color de WhatsApp */
+            color: #25D366;
             margin-bottom: 15px;
             font-size: 24px;
         }
@@ -44,6 +44,11 @@
             margin: 15px 0;
             font-size: 16px;
             line-height: 1.5;
+        }
+        .status-message {
+            font-size: 14px;
+            color: #666;
+            margin-top: 20px;
         }
         .redirect-button {
             background-color: #25D366;
@@ -77,25 +82,37 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #debugInfo {
+            margin-top: 30px;
+            text-align: left;
+            font-size: 12px;
+            color: #999;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>¡Tu carrito está listo!</h1>
+        <h1>Preparando tu carrito</h1>
         
         <div class="product-preview">
-            <div class="product-name" id="productName">Producto seleccionado</div>
+            <div class="product-name" id="productName">Cargando producto...</div>
             <div id="productPrice">Precio: $0.00</div>
             <div id="productQuantity">Cantidad: 1</div>
         </div>
         
-        <p class="message">Estamos preparando tu carrito con los productos que seleccionaste por WhatsApp.</p>
+        <p class="message">Estamos preparando tu carrito con los productos que seleccionaste.</p>
         
         <div class="loader" id="loader"></div>
         
-        <p class="message" id="redirectMessage">Serás redirigido automáticamente en 3 segundos...</p>
+        <p class="status-message" id="statusMessage">Conectando con la tienda...</p>
         
-        <a href="#" class="redirect-button" id="redirectButton">Ir a mi carrito ahora</a>
+        <a href="#" class="redirect-button" id="redirectButton" style="display:none;">Ir a mi carrito ahora</a>
+        
+        <div id="debugInfo">
+            <p>Información de depuración:</p>
+            <div id="debugContent"></div>
+        </div>
     </div>
 
     <script>
@@ -106,6 +123,14 @@
             const productName = urlParams.get('productName') || 'Producto seleccionado';
             const productPrice = urlParams.get('price') || '0.00';
             const quantity = urlParams.get('quantity') || '1';
+            const debug = urlParams.get('debug') === 'true';
+            
+            // Si el modo debug está activado, mostrar panel de depuración
+            if (debug) {
+                document.getElementById('debugInfo').style.display = 'block';
+                log('Modo depuración activado');
+                log('ID de carrito: ' + basketId);
+            }
             
             // Actualizar información del producto en la página
             document.getElementById('productName').textContent = decodeURIComponent(productName);
@@ -113,23 +138,117 @@
             document.getElementById('productQuantity').textContent = 'Cantidad: ' + quantity;
             
             if (!basketId) {
-                document.getElementById('redirectMessage').textContent = 'Error: No se encontró ID de carrito válido.';
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('redirectButton').style.display = 'none';
+                updateStatus('Error: No se encontró ID de carrito válido.', true);
                 return;
             }
             
             // Construir la URL de destino del carrito en Salesforce
-            const salesforceUrl = 'https://www.superzoo.cl/carro'; // Actualiza con tu dominio real
-            const cartUrl = `${salesforceUrl}?basketID=${basketId}`;
+            const salesforceInstance = 'tu-tienda-salesforce.com'; // Actualiza con tu dominio real
+            const cartUrl = `https://${salesforceInstance}/cart?basketID=${basketId}&t=${Date.now()}`;
             
             // Actualizar el enlace del botón
-            document.getElementById('redirectButton').href = cartUrl;
+            const redirectButton = document.getElementById('redirectButton');
+            redirectButton.href = cartUrl;
             
-            // Redirigir automáticamente después de 3 segundos
-            setTimeout(function() {
-                window.location.href = cartUrl;
-            }, 3000);
+            // Iniciar proceso de preparación del carrito
+            updateStatus('Verificando carrito...', false);
+            
+            // Intentar tres métodos diferentes para preparar el carrito
+            initializeCart(basketId, salesforceInstance, cartUrl);
+            
+            function initializeCart(basketId, salesforceInstance, finalUrl) {
+                log('Iniciando proceso de preparación del carrito');
+                
+                // Método 1: Petición preflight para establecer cookies de sesión
+                updateStatus('Configurando sesión...', false);
+                
+                try {
+                    // Crear un iframe invisible para cargar la página de inicio y establecer cookies de sesión
+                    const homepageFrame = document.createElement('iframe');
+                    homepageFrame.style.display = 'none';
+                    homepageFrame.src = `https://${salesforceInstance}/`;
+                    document.body.appendChild(homepageFrame);
+                    
+                    log('Iframe de página principal creado');
+                    
+                    // Después de cargar la página principal, crear otro iframe para el carrito
+                    homepageFrame.onload = function() {
+                        updateStatus('Preparando carrito...', false);
+                        log('Página principal cargada, preparando carrito');
+                        
+                        // Intentar una llamada a la API de sesión primero (si está disponible)
+                        const scriptTag = document.createElement('script');
+                        scriptTag.src = `https://${salesforceInstance}/on/demandware.store/Sites-Site/default/__Analytics.js?t=${Date.now()}`;
+                        scriptTag.onload = function() {
+                            log('Script de analítica cargado, podría ayudar con el ID de sesión');
+                        };
+                        document.head.appendChild(scriptTag);
+                        
+                        // Crear un iframe para el carrito para establecer la sesión
+                        const cartFrame = document.createElement('iframe');
+                        cartFrame.style.display = 'none';
+                        cartFrame.src = finalUrl;
+                        document.body.appendChild(cartFrame);
+                        
+                        log('Iframe de carrito creado con URL: ' + finalUrl);
+                        
+                        // Después de cargar el carrito en el iframe, mostrar el botón
+                        cartFrame.onload = function() {
+                            updateStatus('¡Carrito listo!', false);
+                            log('Carrito cargado en iframe');
+                            
+                            // Mostrar el botón de redirección
+                            redirectButton.style.display = 'inline-block';
+                            
+                            // Opcional: redirección automática después de 2 segundos
+                            setTimeout(function() {
+                                log('Redirigiendo automáticamente...');
+                                window.location.href = finalUrl;
+                            }, 2000);
+                        };
+                    };
+                    
+                } catch (e) {
+                    log('Error en inicialización: ' + e.message);
+                    redirectFallback();
+                }
+            }
+            
+            // Función de redirección directa como respaldo
+            function redirectFallback() {
+                updateStatus('Redirigiendo directamente...', false);
+                log('Usando método de redirección directa');
+                
+                // Mostrar el botón
+                redirectButton.style.display = 'inline-block';
+                
+                // Redirección automática después de 3 segundos
+                setTimeout(function() {
+                    window.location.href = cartUrl;
+                }, 3000);
+            }
+            
+            // Función para actualizar el mensaje de estado
+            function updateStatus(message, isError) {
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.textContent = message;
+                
+                if (isError) {
+                    statusMessage.style.color = '#e74c3c';
+                    document.getElementById('loader').style.display = 'none';
+                    redirectButton.style.display = 'inline-block';
+                }
+            }
+            
+            // Función para registrar información de depuración
+            function log(message) {
+                if (debug) {
+                    const debugContent = document.getElementById('debugContent');
+                    const timestamp = new Date().toLocaleTimeString();
+                    debugContent.innerHTML += `<div>${timestamp}: ${message}</div>`;
+                    console.log(message);
+                }
+            }
         });
     </script>
 </body>
