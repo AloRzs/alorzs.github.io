@@ -143,8 +143,8 @@
             }
             
             // Construir la URL de destino del carrito en Salesforce
-            const salesforceInstance = 'tu-tienda-salesforce.com'; // Actualiza con tu dominio real
-            const cartUrl = `https://${salesforceInstance}/cart?basketID=${basketId}&t=${Date.now()}`;
+            const salesforceInstance = 'www.superzoo.cl'; // Actualiza con tu dominio real
+            const cartUrl = `https://${salesforceInstance}/carro?basketID=${basketId}&t=${Date.now()}`;
             
             // Actualizar el enlace del botón
             const redirectButton = document.getElementById('redirectButton');
@@ -178,7 +178,7 @@
                         
                         // Intentar una llamada a la API de sesión primero (si está disponible)
                         const scriptTag = document.createElement('script');
-                        scriptTag.src = `https://${salesforceInstance}/on/demandware.store/Sites-Site/default/__Analytics.js?t=${Date.now()}`;
+                        scriptTag.src = `https://${salesforceInstance}/on/demandware.store/Sites-SuperZoo-Site/default/__Analytics.js?t=${Date.now()}`;
                         scriptTag.onload = function() {
                             log('Script de analítica cargado, podría ayudar con el ID de sesión');
                         };
